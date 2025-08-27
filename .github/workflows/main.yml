@@ -1,0 +1,43 @@
+name: Windows 11 KVM with VNC + Tailscale
+
+on:
+  workflow_dispatch:
+
+jobs:
+  win11-kvm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients virt-manager virt-install wget swtpm net-tools
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey ${{ secrets.TAILSCALE_AUTHKEY }} --hostname "win11-vm"
+
+      - name: Download Windows 11 ISO
+        run: |
+          wget -O win11.iso "https://delivery.activated.win/dbmassgrave/en-gb_windows_11_consumer_editions_version_24h2_updated_aug_2025_x64_dvd_9236d79b.iso?t=vyNT1Scea5sWrneGJdwFLrAVSbsojju0&P1=1756324047&P2=601&P3=2&P4=vgRUuCxZXyrmhGAUmGmL2KINJHjSy1WGl1gWu6GTehw%3D"
+
+      - name: Create virtual disk
+        run: |
+          qemu-img create -f qcow2 win11.qcow2 64G
+
+      - name: Launch Windows 11 VM with VNC
+        run: |
+          sudo virt-install \
+            --name win11 \
+            --memory 4096 \
+            --vcpus 2 \
+            --cpu host \
+            --disk path=win11.qcow2,size=64,format=qcow2 \
+            --cdrom win11.iso \
+            --os-type windows \
+            --os-variant win11 \
+            --graphics vnc,listen=0.0.0.0,port=5900 \
+            --console pty,target_type=serial \
+            --boot uefi,loader=/usr/share/OVMF/OVMF_CODE.fd \
+            --tpm type=emulator
