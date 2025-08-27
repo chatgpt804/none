@@ -1,0 +1,28 @@
+- name: Install dependencies including OVMF
+  run: |
+    sudo apt update
+    sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients virtinst virt-manager swtpm ovmf wget net-tools
+
+- name: Prepare image directory
+  run: |
+    sudo mkdir -p /var/lib/libvirt/images
+    sudo chown $USER:$USER /var/lib/libvirt/images
+    cp win11.iso /var/lib/libvirt/images/
+    cd /var/lib/libvirt/images
+    qemu-img create -f qcow2 win11.qcow2 64G
+
+- name: Launch Windows 11 VM (headless with VNC)
+  run: |
+    sudo virt-install \
+      --name win11 \
+      --memory 4096 \
+      --vcpus 2 \
+      --cpu host \
+      --disk path=/var/lib/libvirt/images/win11.qcow2,size=64,format=qcow2 \
+      --cdrom /var/lib/libvirt/images/win11.iso \
+      --os-variant win11 \
+      --graphics vnc,listen=0.0.0.0,port=5900 \
+      --console pty,target_type=serial \
+      --boot uefi,loader=/usr/share/OVMF/OVMF_CODE.fd \
+      --tpm type=emulator \
+      --noautoconsole
