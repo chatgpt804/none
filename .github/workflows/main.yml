@@ -1,4 +1,4 @@
-name: Windows 11 KVM with VNC + Tailscale
+name: Windows 11 KVM + VNC + Tailscale
 
 on:
   workflow_dispatch:
@@ -8,14 +8,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install dependencies
+      - name: Update and install dependencies
         run: |
           sudo apt update
-          sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients virt-manager virt-install wget swtpm net-tools
+          sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients virtinst virt-manager wget swtpm net-tools
 
       - name: Install Tailscale
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
+          # Use GitHub secret for auth key
           sudo tailscale up --authkey ${{ secrets.TAILSCALE_AUTHKEY }} --hostname "win11-vm"
 
       - name: Download Windows 11 ISO
@@ -26,7 +27,7 @@ jobs:
         run: |
           qemu-img create -f qcow2 win11.qcow2 64G
 
-      - name: Launch Windows 11 VM with VNC
+      - name: Launch Windows 11 VM (headless with VNC)
         run: |
           sudo virt-install \
             --name win11 \
@@ -40,4 +41,9 @@ jobs:
             --graphics vnc,listen=0.0.0.0,port=5900 \
             --console pty,target_type=serial \
             --boot uefi,loader=/usr/share/OVMF/OVMF_CODE.fd \
-            --tpm type=emulator
+            --tpm type=emulator \
+            --noautoconsole
+          
+      - name: Show Tailscale IP
+        run: |
+          tailscale ip -4
